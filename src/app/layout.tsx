@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { APP_CONFIG } from '../../config';
-import { AuthProvider } from '@/contexts/auth-context';
+import { APP_CONFIG } from "../../config";
+import { AuthProvider } from "@/contexts/auth-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,9 +17,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: APP_CONFIG.name,
   description: APP_CONFIG.description,
-  icons: {
-    icon: '/api/favicon',
-  },
+  icons: [
+    {
+      rel: "icon",
+      url: "/icon.svg",
+      type: "image/svg+xml",
+      sizes: "any",
+    },
+    {
+      rel: "apple-touch-icon",
+      url: "/icon.svg",
+      type: "image/svg+xml",
+      sizes: "any",
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -32,9 +43,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

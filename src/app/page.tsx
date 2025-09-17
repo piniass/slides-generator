@@ -7,7 +7,7 @@ import FAQ from "@/components/sections/faq";
 
 /**
  * Home Page Component
- * 
+ *
  * The main landing page featuring:
  * - Navigation bar with auth buttons
  * - Hero section with compelling CTA
@@ -15,33 +15,33 @@ import FAQ from "@/components/sections/faq";
  * - Pricing tiers
  * - FAQ section
  * - Footer with links and info
- * 
+ *
  * This page serves as the main entry point for visitors
  * and demonstrates the template's capabilities.
- * 
+ *
  * @component
  */
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen  bg-gradient-to-br from-zinc-900 via-emerald-900 to-green-900 text-zinc-100">
       {/* Navigation */}
       <Navbar />
-      
+
       {/* Main Content */}
       <main>
         {/* Hero Section */}
         <Hero />
-        
+
         {/* Features Section */}
         <Features />
-        
+
         {/* Pricing Section */}
         <Pricing />
-        
+
         {/* FAQ Section */}
         <FAQ />
       </main>
-      
+
       {/* Footer */}
       <Footer />
     </div>

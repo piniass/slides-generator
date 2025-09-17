@@ -3,34 +3,46 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogIn, LogOut, CreditCard, ChevronDown } from "lucide-react";
+import {
+  Menu,
+  X,
+  User,
+  LogIn,
+  LogOut,
+  CreditCard,
+  ChevronDown,
+} from "lucide-react";
 import Logo from "@/components/ui/logo";
 import { useAuth } from "@/contexts/auth-context";
 
 interface NavbarProps {
-  variant?: 'default' | 'dashboard';
+  variant?: "default" | "dashboard";
 }
 
-export default function Navbar({ variant = 'default' }: NavbarProps) {
+export default function Navbar({ variant = "default" }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const toggleProfileDropdown = () => setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  const toggleProfileDropdown = () =>
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -43,10 +55,10 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
   const handleBilling = async () => {
     try {
       // Create Stripe billing portal session
-      const response = await fetch('/api/stripe/billing-portal', {
-        method: 'POST',
+      const response = await fetch("/api/stripe/billing-portal", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: user?.id,
@@ -59,39 +71,39 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
       if (data.success && data.url) {
         window.location.href = data.url;
       } else {
-        console.error('Failed to create billing portal session:', data.error);
+        console.error("Failed to create billing portal session:", data.error);
       }
     } catch (error) {
-      console.error('Error creating billing portal session:', error);
+      console.error("Error creating billing portal session:", error);
     }
     setIsProfileDropdownOpen(false);
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-white">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+    <nav className="sticky top-0 z-50 w-full border-b border-emerald-800/30 bg-zinc-900/80 backdrop-blur-md supports-[backdrop-filter]:bg-zinc-900/60">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+        <div className="flex h-16 items-center">
           {/* Logo/Brand */}
           <Logo size="md" showText={true} />
 
           {/* Desktop Navigation */}
-          {variant === 'default' && (
-            <div className="hidden md:flex items-center space-x-8">
-              <Link 
-                href="#features" 
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 cursor-pointer"
+          {variant === "default" && (
+            <div className="hidden md:flex items-center space-x-8 ml-12">
+              <Link
+                href="#features"
+                className="text-sm font-medium text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer"
               >
                 Features
               </Link>
-              <Link 
-                href="#pricing" 
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 cursor-pointer"
+              <Link
+                href="#pricing"
+                className="text-sm font-medium text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer"
               >
                 Pricing
               </Link>
-              <Link 
-                href="#faq" 
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 cursor-pointer"
+              <Link
+                href="#faq"
+                className="text-sm font-medium text-zinc-400 hover:text-emerald-300 transition-colors cursor-pointer"
               >
                 FAQ
               </Link>
@@ -99,37 +111,37 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
           )}
 
           {/* Auth Button */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4 ml-auto">
             {loading ? (
               <div className="h-9 w-20 bg-gray-200 animate-pulse rounded"></div>
             ) : user ? (
-              variant === 'dashboard' ? (
+              variant === "dashboard" ? (
                 // Dashboard variant: Profile dropdown with Billing and Sign Out
                 <div className="relative" ref={dropdownRef}>
                   <Button
                     variant="outline"
                     onClick={toggleProfileDropdown}
-                    className="flex items-center space-x-2 cursor-pointer"
+                    className="flex items-center space-x-2 cursor-pointer bg-emerald-900/20 border-emerald-800/30 text-zinc-100 hover:bg-emerald-800/30 hover:border-emerald-700/50 hover:text-white transition-colors"
                   >
                     <User className="h-4 w-4" />
                     <span>Profile</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
-                  
+
                   {/* Profile Dropdown */}
                   {isProfileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-zinc-900/95 rounded-md shadow-lg border border-emerald-800/30 z-50">
                       <div className="py-1">
                         <button
                           onClick={handleBilling}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                          className="flex items-center w-full px-4 py-2 text-sm text-zinc-100 hover:bg-emerald-800/30 hover:text-emerald-300 transition-colors cursor-pointer"
                         >
                           <CreditCard className="h-4 w-4 mr-3" />
                           Billing
                         </button>
                         <button
                           onClick={handleSignOut}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                          className="flex items-center w-full px-4 py-2 text-sm text-zinc-100 hover:bg-emerald-800/30 hover:text-emerald-300 transition-colors cursor-pointer"
                         >
                           <LogOut className="h-4 w-4 mr-3" />
                           Sign Out
@@ -140,16 +152,30 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
                 </div>
               ) : (
                 // Default variant: Dashboard button
-                <Button asChild>
-                  <Link href="/dashboard" className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  className="bg-emerald-900/20 border-emerald-800/30 text-zinc-100 hover:bg-emerald-800/30 hover:border-emerald-700/50 hover:text-white transition-colors"
+                  asChild
+                >
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center space-x-2"
+                  >
                     <User className="h-4 w-4" />
                     <span>Dashboard</span>
                   </Link>
                 </Button>
               )
             ) : (
-              <Button variant="outline" asChild>
-                <Link href="/auth/signin" className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                className="bg-emerald-900/20 border-emerald-800/30 text-zinc-100 hover:bg-emerald-800/30 hover:border-emerald-700/50"
+                asChild
+              >
+                <Link
+                  href="/auth/signin"
+                  className="flex items-center space-x-2"
+                >
                   <LogIn className="h-4 w-4" />
                   <span>Sign In</span>
                 </Link>
@@ -178,7 +204,7 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 border-t">
-              {variant === 'default' && (
+              {variant === "default" && (
                 <>
                   <Link
                     href="#features"
@@ -207,7 +233,7 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
                 {loading ? (
                   <div className="h-10 w-full bg-gray-200 animate-pulse rounded"></div>
                 ) : user ? (
-                  variant === 'dashboard' ? (
+                  variant === "dashboard" ? (
                     // Dashboard variant: Billing and Sign Out only
                     <>
                       <button
@@ -228,7 +254,10 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
                   ) : (
                     // Default variant: Dashboard button
                     <Button asChild className="w-full">
-                      <Link href="/dashboard" className="flex items-center justify-center space-x-2">
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center justify-center space-x-2"
+                      >
                         <User className="h-4 w-4" />
                         <span>Dashboard</span>
                       </Link>
@@ -236,7 +265,10 @@ export default function Navbar({ variant = 'default' }: NavbarProps) {
                   )
                 ) : (
                   <Button variant="outline" asChild className="w-full">
-                    <Link href="/auth/signin" className="flex items-center justify-center space-x-2">
+                    <Link
+                      href="/auth/signin"
+                      className="flex items-center justify-center space-x-2"
+                    >
                       <LogIn className="h-4 w-4" />
                       <span>Sign In</span>
                     </Link>
