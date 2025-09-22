@@ -24,14 +24,11 @@ interface ImageEditorDrawerProps {
   borderSize: number;
   textColor: string;
   strokeColor: string;
-  hasTextBackground: boolean;
-  textBackgroundColor: string;
   isBold: boolean;
   isItalic: boolean;
   isUnderline: boolean;
   logo: string | null;
   logoPosition: TextPosition;
-  logoSize: number;
   onClose: () => void;
   onTextChange: (text: string) => void;
   onFontSizeChange: (size: FontSize) => void;
@@ -43,11 +40,8 @@ interface ImageEditorDrawerProps {
   onBorderSizeChange: (size: number) => void;
   onTextColorChange: (color: string) => void;
   onStrokeColorChange: (color: string) => void;
-  onTextBackgroundChange: (hasBackground: boolean) => void;
-  onTextBackgroundColorChange: (color: string) => void;
   onLogoChange: (logo: string | null) => void;
   onLogoPositionChange: (position: TextPosition) => void;
-  onLogoSizeChange: (size: number) => void;
   onDownload: () => void;
 }
 
@@ -61,14 +55,11 @@ export default function ImageEditorDrawer({
   borderSize,
   textColor,
   strokeColor,
-  hasTextBackground,
-  textBackgroundColor,
   isBold,
   isItalic,
   isUnderline,
   logo,
   logoPosition,
-  logoSize,
   onClose,
   onTextChange,
   onFontSizeChange,
@@ -80,14 +71,12 @@ export default function ImageEditorDrawer({
   onBorderSizeChange,
   onTextColorChange,
   onStrokeColorChange,
-  onTextBackgroundChange,
-  onTextBackgroundColorChange,
   onLogoChange,
   onLogoPositionChange,
-  onLogoSizeChange,
   onDownload,
 }: ImageEditorDrawerProps) {
   if (!isOpen) return null;
+
   return (
     <div
       className={`fixed inset-0 z-50 transition-all duration-500 ${
@@ -125,151 +114,46 @@ export default function ImageEditorDrawer({
         <div className="flex-1 overflow-y-auto">
           {/* Input section */}
           <div className="px-6 py-4 space-y-4">
+            {/* Text Input */}
             <div className="space-y-2">
               <label className="text-sm text-zinc-400">Text</label>
               <Textarea
                 placeholder="Add text to your image..."
                 value={overlayText}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  onTextChange(e.target.value)
-                }
+                onChange={(e) => onTextChange(e.target.value)}
                 className="bg-zinc-800/30 border-zinc-700/30 text-zinc-100 placeholder:text-zinc-400 min-h-[100px] resize-none"
               />
             </div>
 
+            {/* Font Size */}
             <div className="space-y-2">
               <label className="text-sm text-zinc-400">Font Size</label>
               <select
                 value={fontSize}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  onFontSizeChange(e.target.value as FontSize)
-                }
+                onChange={(e) => onFontSizeChange(e.target.value as FontSize)}
                 className="w-full bg-zinc-800/30 border border-zinc-700/30 text-zinc-100 rounded-md p-2 cursor-pointer hover:bg-zinc-700/30 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option className="bg-zinc-800" value="small">
-                  Small
-                </option>
-                <option className="bg-zinc-800" value="medium">
-                  Medium
-                </option>
-                <option className="bg-zinc-800" value="large">
-                  Large
-                </option>
+                <option className="bg-zinc-800" value="small">Small</option>
+                <option className="bg-zinc-800" value="medium">Medium</option>
+                <option className="bg-zinc-800" value="large">Large</option>
               </select>
             </div>
 
+            {/* Text Position */}
             <div className="space-y-2">
               <label className="text-sm text-zinc-400">Text Position</label>
               <select
                 value={textPosition}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  onTextPositionChange(e.target.value as TextPosition)
-                }
+                onChange={(e) => onTextPositionChange(e.target.value as TextPosition)}
                 className="w-full bg-zinc-800/30 border border-zinc-700/30 text-zinc-100 rounded-md p-2 cursor-pointer hover:bg-zinc-700/30 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option className="bg-zinc-800" value="top">
-                  Top
-                </option>
-                <option className="bg-zinc-800" value="center">
-                  Center
-                </option>
-                <option className="bg-zinc-800" value="bottom">
-                  Bottom
-                </option>
+                <option className="bg-zinc-800" value="top">Top</option>
+                <option className="bg-zinc-800" value="center">Center</option>
+                <option className="bg-zinc-800" value="bottom">Bottom</option>
               </select>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm text-zinc-400">Logo</label>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            onLogoChange(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="hidden"
-                      id="logo-upload"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() =>
-                        document.getElementById("logo-upload")?.click()
-                      }
-                      variant="outline"
-                      className="w-full bg-zinc-800/30 border-zinc-700/30 hover:bg-zinc-700/30 hover:text-emerald-500"
-                    >
-                      {logo ? "Change Logo" : "Upload Logo"}
-                    </Button>
-                  </div>
-                  {logo && (
-                    <Button
-                      type="button"
-                      onClick={() => onLogoChange(null)}
-                      variant="outline"
-                      className="bg-zinc-800/30 border-zinc-700/30 hover:bg-red-900/30 hover:text-red-500"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {logo && (
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Logo Position</label>
-                  <select
-                    value={logoPosition}
-                    onChange={(e) =>
-                      onLogoPositionChange(e.target.value as TextPosition)
-                    }
-                    className="w-full bg-zinc-800/30 border border-zinc-700/30 text-zinc-100 rounded-md p-2 cursor-pointer hover:bg-zinc-700/30 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option className="bg-zinc-800" value="top">
-                      Top
-                    </option>
-                    <option className="bg-zinc-800" value="center">
-                      Center
-                    </option>
-                    <option className="bg-zinc-800" value="bottom">
-                      Bottom
-                    </option>
-                  </select>
-                </div>
-              )}
-
-              {logo && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm text-zinc-400">Logo Size</label>
-                    <span className="text-sm text-zinc-400">
-                      {Math.round(logoSize)}px
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="20"
-                    max="864"
-                    value={logoSize}
-                    onChange={(e) => onLogoSizeChange(Number(e.target.value))}
-                    className="w-full cursor-pointer accent-emerald-500"
-                  />
-                  <p className="text-xs text-zinc-500">
-                    Max width: 864px (80% of canvas width)
-                  </p>
-                </div>
-              )}
-            </div>
-
+            {/* Text Style */}
             <div className="space-y-2">
               <label className="text-sm text-zinc-400">Text Style</label>
               <div className="flex gap-2">
@@ -312,44 +196,22 @@ export default function ImageEditorDrawer({
               </div>
             </div>
 
+            {/* Text Border and Colors */}
             <div className="space-y-2">
               <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="textBorder"
-                      checked={textBorder}
-                      onChange={(e) => {
-                        onTextBorderChange(e.target.checked);
-                        onBorderSizeChange(2); // Set fixed 2px size when toggling
-                      }}
-                      className="h-4 w-4 rounded bg-zinc-800/30 border-zinc-700/30 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
-                    />
-                    <label
-                      htmlFor="textBorder"
-                      className="text-sm text-zinc-400 ml-2 cursor-pointer"
-                    >
-                      Text Border
-                    </label>
-                  </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="textBorder"
+                    checked={textBorder}
+                    onChange={(e) => onTextBorderChange(e.target.checked)}
+                    className="h-4 w-4 rounded bg-zinc-800/30 border-zinc-700/30 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <label htmlFor="textBorder" className="text-sm text-zinc-400 ml-2 cursor-pointer">
+                    Text Border
+                  </label>
+                </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="textBackground"
-                      checked={hasTextBackground}
-                      onChange={(e) => onTextBackgroundChange(e.target.checked)}
-                      className="h-4 w-4 rounded bg-zinc-800/30 border-zinc-700/30 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
-                    />
-                    <label
-                      htmlFor="textBackground"
-                      className="text-sm text-zinc-400 ml-2 cursor-pointer"
-                    >
-                      Text Background
-                    </label>
-                  </div>
-                </div>{" "}
                 <div className="flex items-center justify-between">
                   <label className="text-sm text-zinc-400">Text Color</label>
                   <div className="flex items-center gap-2">
@@ -364,11 +226,10 @@ export default function ImageEditorDrawer({
                     <span className="text-sm text-zinc-400">{textColor}</span>
                   </div>
                 </div>
+
                 {textBorder && (
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-zinc-400">
-                      Border Color
-                    </label>
+                    <label className="text-sm text-zinc-400">Border Color</label>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded border border-zinc-700/30 overflow-hidden">
                         <input
@@ -378,35 +239,71 @@ export default function ImageEditorDrawer({
                           className="w-10 h-10 -m-1 cursor-pointer"
                         />
                       </div>
-                      <span className="text-sm text-zinc-400">
-                        {strokeColor}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                {hasTextBackground && (
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm text-zinc-400">
-                      Background Color
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded border border-zinc-700/30 overflow-hidden">
-                        <input
-                          type="color"
-                          value={textBackgroundColor}
-                          onChange={(e) =>
-                            onTextBackgroundColorChange(e.target.value)
-                          }
-                          className="w-10 h-10 -m-1 cursor-pointer"
-                        />
-                      </div>
-                      <span className="text-sm text-zinc-400">
-                        {textBackgroundColor}
-                      </span>
+                      <span className="text-sm text-zinc-400">{strokeColor}</span>
                     </div>
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Logo Controls */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-400">Logo</label>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            onLogoChange(reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => document.getElementById("logo-upload")?.click()}
+                      variant="outline"
+                      className="w-full bg-zinc-800/30 border-zinc-700/30 hover:bg-zinc-700/30 hover:text-emerald-500"
+                    >
+                      {logo ? "Change Logo" : "Upload Logo"}
+                    </Button>
+                  </div>
+                  {logo && (
+                    <Button
+                      type="button"
+                      onClick={() => onLogoChange(null)}
+                      variant="outline"
+                      className="bg-zinc-800/30 border-zinc-700/30 hover:bg-red-900/30 hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {logo && (
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-400">Logo Position</label>
+                  <select
+                    value={logoPosition}
+                    onChange={(e) => onLogoPositionChange(e.target.value as TextPosition)}
+                    className="w-full bg-zinc-800/30 border border-zinc-700/30 text-zinc-100 rounded-md p-2 cursor-pointer hover:bg-zinc-700/30 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option className="bg-zinc-800" value="top">Top</option>
+                    <option className="bg-zinc-800" value="center">Center</option>
+                    <option className="bg-zinc-800" value="bottom">Bottom</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -444,8 +341,8 @@ export default function ImageEditorDrawer({
                   } justify-center p-8`}
                 >
                   <div
-                    className={`text-center max-w-[80%] break-words whitespace-pre-wrap px-2 py-1 rounded-lg ${
-                      !textBorder && !hasTextBackground && "drop-shadow-lg"
+                    className={`text-center max-w-[80%] break-words whitespace-pre-wrap ${
+                      !textBorder && "drop-shadow-lg"
                     }`}
                     style={{
                       color: textColor,
@@ -453,9 +350,6 @@ export default function ImageEditorDrawer({
                       fontWeight: isBold ? "bold" : "normal",
                       fontStyle: isItalic ? "italic" : "normal",
                       textDecoration: isUnderline ? "underline" : "none",
-                      backgroundColor: hasTextBackground
-                        ? textBackgroundColor
-                        : "transparent",
                       ...(textBorder && {
                         WebkitTextStroke: `${borderSize}px ${strokeColor}`,
                         textStroke: `${borderSize}px ${strokeColor}`,
@@ -480,11 +374,7 @@ export default function ImageEditorDrawer({
                     <img
                       src={logo}
                       alt="Logo overlay"
-                      className="w-auto object-contain drop-shadow-lg"
-                      style={{
-                        maxWidth: `${Math.round(logoSize * 0.37)}px`,
-                        height: "auto",
-                      }}
+                      className="h-16 w-auto object-contain drop-shadow-lg"
                     />
                   </div>
                 )}
@@ -493,8 +383,9 @@ export default function ImageEditorDrawer({
           </div>
         </div>
 
+        {/* Footer */}
         <div className="flex flex-col p-6 border-t border-emerald-800/30 bg-zinc-900/95">
-          {/* Preview Button */}
+          {/* Full Size Preview Button */}
           <Button
             onClick={() => {
               const previewWindow = window.open("", "_blank");
@@ -550,31 +441,20 @@ export default function ImageEditorDrawer({
                           font-family: system-ui;
                           font-weight: ${isBold ? "bold" : "normal"};
                           font-style: ${isItalic ? "italic" : "normal"};
-                          text-decoration: ${
-                            isUnderline ? "underline" : "none"
-                          };
+                          text-decoration: ${isUnderline ? "underline" : "none"};
                           text-align: center;
                           max-width: 80%;
                           white-space: pre-wrap;
                           font-size: ${FONT_SIZES[fontSize]}px;
-                          background-color: ${
-                            hasTextBackground
-                              ? textBackgroundColor
-                              : "transparent"
-                          };
-                          padding: ${hasTextBackground ? "0.5em 1em" : "0"};
-                          border-radius: ${hasTextBackground ? "0.5em" : "0"};
                           ${
                             textBorder
                               ? `
                             -webkit-text-stroke: ${borderSize}px ${strokeColor};
                             text-stroke: ${borderSize}px ${strokeColor};
                           `
-                              : !hasTextBackground
-                              ? `
+                              : `
                             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
                           `
-                              : ""
                           }
                         }
                         .logo-overlay {
@@ -592,10 +472,10 @@ export default function ImageEditorDrawer({
                           padding: 2rem;
                         }
                         .logo {
-                          max-width: ${logoSize}px;
+                          height: 60px;
                           width: auto;
-                          height: auto;
                           object-fit: contain;
+                          filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
                         }
                       </style>
                     </head>
@@ -634,7 +514,7 @@ export default function ImageEditorDrawer({
             onClick={onDownload}
             className="w-full bg-emerald-600 hover:bg-emerald-800/90 text-white py-6 cursor-pointer"
           >
-            <Download className="h-5 w-5" />
+            <Download className="h-5 w-5 mr-2" />
             Download Image
           </Button>
         </div>
