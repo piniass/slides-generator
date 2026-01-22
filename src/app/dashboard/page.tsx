@@ -38,6 +38,12 @@ export default function Dashboard() {
   const [imageLinks, setImageLinks] = useState<(string | null)[]>([]); // Enlaces por imagen
   const [imageTitles, setImageTitles] = useState<(string | null)[]>([]); // Títulos por imagen
   const [imageTitleSizes, setImageTitleSizes] = useState<(number | null)[]>([]); // Tamaños de título por imagen
+  const [imageLineHeights, setImageLineHeights] = useState<(number | null)[]>([]); // Espaciado entre líneas por imagen
+  const [imageTextSizes, setImageTextSizes] = useState<(number | null)[]>([]); // Tamaños de texto por imagen
+  const [imageTextBold, setImageTextBold] = useState<(boolean | null)[]>([]); // Bold por imagen
+  const [imageTextItalic, setImageTextItalic] = useState<(boolean | null)[]>([]); // Italic por imagen
+  const [imageTextUnderline, setImageTextUnderline] = useState<(boolean | null)[]>([]); // Underline por imagen
+  const [imageTextColors, setImageTextColors] = useState<(string | null)[]>([]); // Colores de texto por imagen
   const [imageLogos, setImageLogos] = useState<(string | null)[]>([]); // Logos por imagen
   const [imageLogoSizes, setImageLogoSizes] = useState<(number | null)[]>([]); // Tamaños de logo por imagen
   const [uploadingLogoIndex, setUploadingLogoIndex] = useState<number | null>(null); // Índice de la imagen donde se está subiendo el logo
@@ -54,6 +60,7 @@ export default function Dashboard() {
   const [editingTextUnderline, setEditingTextUnderline] = useState(false);
   const [editingTextColor, setEditingTextColor] = useState("#FFFFFF");
   const [editingTextSize, setEditingTextSize] = useState(48);
+  const [editingLineHeight, setEditingLineHeight] = useState(60); // Espaciado entre líneas por defecto
   const [editingTextCase, setEditingTextCase] = useState<"none" | "uppercase" | "lowercase" | "capitalize">("none");
   const [openTextCaseMenu, setOpenTextCaseMenu] = useState(false);
   const [changingImageIndex, setChangingImageIndex] = useState<number | null>(null);
@@ -64,6 +71,7 @@ export default function Dashboard() {
   const [textPositions, setTextPositions] = useState<("top" | "center" | "bottom")[]>([]); // Posición del texto de cada imagen
   const [openTextPositionMenu, setOpenTextPositionMenu] = useState<number | null>(null); // Índice del menú de posición abierto
   const [openImageMenu, setOpenImageMenu] = useState<number | null>(null); // Índice del menú de imagen abierto
+  const [showResetConfirmDialog, setShowResetConfirmDialog] = useState(false); // Diálogo de confirmación para reset
   const shouldRegenerateRef = useRef(false);
 
   const availableFonts = [
@@ -211,6 +219,14 @@ export default function Dashboard() {
       const customLogo = imageLogos[i] !== undefined ? imageLogos[i] : null;
       // Obtener el tamaño del logo si existe
       const customLogoSize = imageLogoSizes[i] !== undefined && imageLogoSizes[i] !== null ? imageLogoSizes[i]! : 100;
+      // Obtener el line-height si existe
+      const customLineHeight = imageLineHeights[i] !== undefined && imageLineHeights[i] !== null ? imageLineHeights[i]! : 60;
+      // Obtener los estilos de texto personalizados si existen
+      const customTextSize = imageTextSizes[i] !== undefined && imageTextSizes[i] !== null ? imageTextSizes[i]! : fontSize;
+      const customTextBold = imageTextBold[i] !== undefined && imageTextBold[i] !== null ? imageTextBold[i]! : textBold;
+      const customTextItalic = imageTextItalic[i] !== undefined && imageTextItalic[i] !== null ? imageTextItalic[i]! : textItalic;
+      const customTextUnderline = imageTextUnderline[i] !== undefined && imageTextUnderline[i] !== null ? imageTextUnderline[i]! : textUnderline;
+      const customTextColor = imageTextColors[i] !== undefined && imageTextColors[i] !== null ? imageTextColors[i]! : textColor;
       
       // Obtener la posición del texto para esta imagen (por defecto "center")
       const textPosition = textPositions[i] !== undefined ? textPositions[i] : "center";
@@ -228,8 +244,15 @@ export default function Dashboard() {
         img.onload = async () => {
           // Usar la imagen base correcta para esta iteración
           const currentImageBase = imageBase;
-          // Capturar el logo para esta iteración
-          const currentLogo = customLogo;
+          // Capturar los valores personalizados para esta iteración dentro del callback
+          const logoForThisImage = customLogo;
+          const logoSizeForThisImage = customLogoSize;
+          const lineHeightForThisImage = customLineHeight;
+          const textSizeForThisImage = customTextSize;
+          const textBoldForThisImage = customTextBold;
+          const textItalicForThisImage = customTextItalic;
+          const textUnderlineForThisImage = customTextUnderline;
+          const textColorForThisImage = customTextColor;
           // Dibujar el fondo negro primero
           ctx.fillStyle = "#000000";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -384,12 +407,12 @@ export default function Dashboard() {
             ctx.filter = "none";
           }
 
-          // Configurar el texto (sin desenfoque)
-          ctx.fillStyle = textColor;
-          // Construir el string de font con los estilos
-          const fontStyle = textItalic ? "italic" : "normal";
-          const fontWeight = textBold ? "bold" : "normal";
-          ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+          // Configurar el texto (sin desenfoque) usando valores personalizados
+          ctx.fillStyle = textColorForThisImage;
+          // Construir el string de font con los estilos personalizados
+          const fontStyle = textItalicForThisImage ? "italic" : "normal";
+          const fontWeight = textBoldForThisImage ? "bold" : "normal";
+          ctx.font = `${fontStyle} ${fontWeight} ${textSizeForThisImage}px ${fontFamily}`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
@@ -458,16 +481,16 @@ export default function Dashboard() {
           
           // Solo dibujar texto si hay texto que dibujar
           if (textToUse && textToUse.trim()) {
-            // Restaurar el estilo del texto principal
-            ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
-            ctx.fillStyle = textColor;
+            // Restaurar el estilo del texto principal usando valores personalizados
+            ctx.font = `${fontStyle} ${fontWeight} ${textSizeForThisImage}px ${fontFamily}`;
+            ctx.fillStyle = textColorForThisImage;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             
             // Dividir el texto en líneas con wrap (ancho máximo 1080px con padding)
             const maxTextWidth = 1080 - 80; // 40px de padding a cada lado
             const textLines = wrapText(ctx, textToUse, maxTextWidth);
-            const lineHeight = 60;
+            const lineHeight = lineHeightForThisImage;
             const totalHeight = lineHeight * textLines.length;
             
             // Calcular startY según la posición del texto
@@ -498,8 +521,8 @@ export default function Dashboard() {
               // Dibujar el texto con el color seleccionado
               ctx.fillText(line, canvas.width / 2, y);
               
-              // Dibujar subrayado si está activado
-              if (textUnderline) {
+              // Dibujar subrayado si está activado (usar valor personalizado)
+              if (textUnderlineForThisImage) {
                 const textMetrics = ctx.measureText(line);
                 const textWidth = textMetrics.width;
                 const underlineY = y + 5; // 5px debajo del texto
@@ -514,32 +537,41 @@ export default function Dashboard() {
           }
 
           // Dibujar logo en la parte inferior si existe
-          if (currentLogo && currentLogo.trim()) {
+          if (logoForThisImage && logoForThisImage.trim()) {
             const logoImg = new Image();
             logoImg.crossOrigin = "anonymous";
             
             await new Promise<void>((resolveLogo) => {
               logoImg.onload = () => {
-                // Tamaño máximo del logo (ajustable)
-                const maxLogoWidth = 300;
-                const maxLogoHeight = 150;
+                // Tamaño base del logo (ajustable)
+                const baseLogoWidth = 300;
+                const baseLogoHeight = 150;
                 const padding = 160; // Padding desde el borde inferior
                 
-                // Calcular dimensiones manteniendo la proporción
+                // Obtener el tamaño personalizado del logo (porcentaje, por defecto 100%)
+                const logoSizePercent = logoSizeForThisImage !== undefined && logoSizeForThisImage !== null ? logoSizeForThisImage : 100;
+                const sizeMultiplier = logoSizePercent / 100;
+                
+                // Calcular dimensiones base manteniendo la proporción
                 let logoWidth = logoImg.width;
                 let logoHeight = logoImg.height;
                 
-                if (logoWidth > maxLogoWidth) {
-                  const scale = maxLogoWidth / logoWidth;
-                  logoWidth = maxLogoWidth;
+                // Escalar al tamaño base si es necesario
+                if (logoWidth > baseLogoWidth) {
+                  const scale = baseLogoWidth / logoWidth;
+                  logoWidth = baseLogoWidth;
                   logoHeight = logoHeight * scale;
                 }
                 
-                if (logoHeight > maxLogoHeight) {
-                  const scale = maxLogoHeight / logoHeight;
-                  logoHeight = maxLogoHeight;
+                if (logoHeight > baseLogoHeight) {
+                  const scale = baseLogoHeight / logoHeight;
+                  logoHeight = baseLogoHeight;
                   logoWidth = logoWidth * scale;
                 }
+                
+                // Aplicar el multiplicador de tamaño
+                logoWidth = logoWidth * sizeMultiplier;
+                logoHeight = logoHeight * sizeMultiplier;
                 
                 // Posicionar el logo en el centro inferior
                 const logoX = (canvas.width - logoWidth) / 2;
@@ -552,7 +584,7 @@ export default function Dashboard() {
               logoImg.onerror = () => {
                 resolveLogo();
               };
-              logoImg.src = currentLogo;
+              logoImg.src = logoForThisImage;
             });
           }
 
@@ -595,6 +627,52 @@ export default function Dashboard() {
       }
       return newLogoSizes;
     });
+
+    // Asegurar que imageLineHeights tenga el tamaño correcto (null por defecto = tamaño por defecto)
+    setImageLineHeights((prev) => {
+      const newLineHeights = [...prev];
+      while (newLineHeights.length < count) {
+        newLineHeights.push(null);
+      }
+      return newLineHeights;
+    });
+
+    // Asegurar que los arrays de estilos de texto tengan el tamaño correcto
+    setImageTextSizes((prev) => {
+      const newSizes = [...prev];
+      while (newSizes.length < count) {
+        newSizes.push(null);
+      }
+      return newSizes;
+    });
+    setImageTextBold((prev) => {
+      const newBold = [...prev];
+      while (newBold.length < count) {
+        newBold.push(null);
+      }
+      return newBold;
+    });
+    setImageTextItalic((prev) => {
+      const newItalic = [...prev];
+      while (newItalic.length < count) {
+        newItalic.push(null);
+      }
+      return newItalic;
+    });
+    setImageTextUnderline((prev) => {
+      const newUnderline = [...prev];
+      while (newUnderline.length < count) {
+        newUnderline.push(null);
+      }
+      return newUnderline;
+    });
+    setImageTextColors((prev) => {
+      const newColors = [...prev];
+      while (newColors.length < count) {
+        newColors.push(null);
+      }
+      return newColors;
+    });
     
     setIsGenerating(false);
   };
@@ -612,6 +690,14 @@ export default function Dashboard() {
     setImageLogos(new Array(count).fill(null));
     // Inicializar el array de tamaños de logos (todos null = tamaño por defecto)
     setImageLogoSizes(new Array(count).fill(null));
+    // Inicializar el array de line-heights (todos null = tamaño por defecto)
+    setImageLineHeights(new Array(count).fill(null));
+    // Inicializar los arrays de estilos de texto (todos null = usar valores globales)
+    setImageTextSizes(new Array(count).fill(null));
+    setImageTextBold(new Array(count).fill(null));
+    setImageTextItalic(new Array(count).fill(null));
+    setImageTextUnderline(new Array(count).fill(null));
+    setImageTextColors(new Array(count).fill(null));
     await generateImages();
   };
 
@@ -633,6 +719,12 @@ export default function Dashboard() {
     setImageLinks([]);
     setImageTitles([]);
     setImageTitleSizes([]);
+    setImageLineHeights([]);
+    setImageTextSizes([]);
+    setImageTextBold([]);
+    setImageTextItalic([]);
+    setImageTextUnderline([]);
+    setImageTextColors([]);
     setImageLogos([]);
     setImageLogoSizes([]);
     setBlurBlocked([]);
@@ -766,6 +858,12 @@ export default function Dashboard() {
     setImageLinks((prev) => prev.filter((_, i) => i !== index));
     setImageTitles((prev) => prev.filter((_, i) => i !== index));
     setImageTitleSizes((prev) => prev.filter((_, i) => i !== index));
+    setImageLineHeights((prev) => prev.filter((_, i) => i !== index));
+    setImageTextSizes((prev) => prev.filter((_, i) => i !== index));
+    setImageTextBold((prev) => prev.filter((_, i) => i !== index));
+    setImageTextItalic((prev) => prev.filter((_, i) => i !== index));
+    setImageTextUnderline((prev) => prev.filter((_, i) => i !== index));
+    setImageTextColors((prev) => prev.filter((_, i) => i !== index));
     setImageLogos((prev) => prev.filter((_, i) => i !== index));
     setBlurBlocked((prev) => prev.filter((_, i) => i !== index));
     setImageBaseSources((prev) => prev.filter((_, i) => i !== index));
@@ -797,7 +895,8 @@ export default function Dashboard() {
     customTitle?: string | null,
     customTitleSize?: number | null,
     customLogo?: string | null,
-    customLogoSize?: number | null
+    customLogoSize?: number | null,
+    customLineHeight?: number | null
   ): Promise<string> => {
     // Usar estilos personalizados si se proporcionan, sino usar los globales
     const textBoldStyle = customStyles?.bold !== undefined ? customStyles.bold : textBold;
@@ -1076,7 +1175,7 @@ export default function Dashboard() {
           // Dividir el texto en líneas con wrap (ancho máximo 1080px con padding)
           const maxTextWidth = 1080 - 80; // 40px de padding a cada lado
           const textLines = wrapText(ctx, textToUse, maxTextWidth);
-          const lineHeight = 60;
+          const lineHeight = customLineHeight !== undefined && customLineHeight !== null ? customLineHeight : 60;
           const totalHeight = lineHeight * textLines.length;
           
           // Obtener la posición del texto (usar override si se proporciona, sino usar el estado)
@@ -1195,7 +1294,7 @@ export default function Dashboard() {
     try {
       // Generar la nueva imagen sin texto usando la imagen base actual
       const newImageIndex = generatedImages.length;
-      const newImage = await generateSingleImage(baseImageSrc, newImageIndex, false, null, undefined, undefined, undefined, null, null, null, null);
+      const newImage = await generateSingleImage(baseImageSrc, newImageIndex, false, null, undefined, undefined, undefined, null, null, null, null, null);
       if (newImage) {
         setGeneratedImages((prev) => [...prev, newImage]);
         // Añadir null al array de textos personalizados para mantener la sincronización
@@ -1206,6 +1305,18 @@ export default function Dashboard() {
         setImageTitles((prev) => [...prev, null]);
         // Añadir null al array de tamaños de títulos
         setImageTitleSizes((prev) => [...prev, null]);
+        // Añadir null al array de line-heights
+        setImageLineHeights((prev) => [...prev, null]);
+        // Añadir null al array de tamaños de texto
+        setImageTextSizes((prev) => [...prev, null]);
+        // Añadir null al array de bold
+        setImageTextBold((prev) => [...prev, null]);
+        // Añadir null al array de italic
+        setImageTextItalic((prev) => [...prev, null]);
+        // Añadir null al array de underline
+        setImageTextUnderline((prev) => [...prev, null]);
+        // Añadir null al array de colores de texto
+        setImageTextColors((prev) => [...prev, null]);
         // Añadir null al array de logos
         setImageLogos((prev) => [...prev, null]);
         // Añadir null al array de tamaños de logos
@@ -1249,6 +1360,9 @@ export default function Dashboard() {
     setEditingTextUnderline(textUnderline);
     setEditingTextColor(textColor);
     setEditingTextSize(fontSize);
+    // Cargar el line-height actual si existe, sino usar 60 por defecto
+    const currentLineHeight = imageLineHeights[index] !== undefined && imageLineHeights[index] !== null ? imageLineHeights[index]! : 60;
+    setEditingLineHeight(currentLineHeight);
     setEditingTextCase("none"); // Resetear el caso al abrir el editor
     
     setEditingIndex(index);
@@ -1309,6 +1423,50 @@ export default function Dashboard() {
       newImageTitleSizes[editingIndex] = editingTitle.trim() ? editingTitleSize : null;
       setImageTitleSizes(newImageTitleSizes);
 
+      // Actualizar el espaciado entre líneas
+      const newImageLineHeights = [...imageLineHeights];
+      while (newImageLineHeights.length <= editingIndex) {
+        newImageLineHeights.push(null);
+      }
+      newImageLineHeights[editingIndex] = editingLineHeight;
+      setImageLineHeights(newImageLineHeights);
+
+      // Actualizar los estilos de texto personalizados
+      const newImageTextSizes = [...imageTextSizes];
+      while (newImageTextSizes.length <= editingIndex) {
+        newImageTextSizes.push(null);
+      }
+      newImageTextSizes[editingIndex] = editingTextSize;
+      setImageTextSizes(newImageTextSizes);
+
+      const newImageTextBold = [...imageTextBold];
+      while (newImageTextBold.length <= editingIndex) {
+        newImageTextBold.push(null);
+      }
+      newImageTextBold[editingIndex] = editingTextBold;
+      setImageTextBold(newImageTextBold);
+
+      const newImageTextItalic = [...imageTextItalic];
+      while (newImageTextItalic.length <= editingIndex) {
+        newImageTextItalic.push(null);
+      }
+      newImageTextItalic[editingIndex] = editingTextItalic;
+      setImageTextItalic(newImageTextItalic);
+
+      const newImageTextUnderline = [...imageTextUnderline];
+      while (newImageTextUnderline.length <= editingIndex) {
+        newImageTextUnderline.push(null);
+      }
+      newImageTextUnderline[editingIndex] = editingTextUnderline;
+      setImageTextUnderline(newImageTextUnderline);
+
+      const newImageTextColors = [...imageTextColors];
+      while (newImageTextColors.length <= editingIndex) {
+        newImageTextColors.push(null);
+      }
+      newImageTextColors[editingIndex] = editingTextColor;
+      setImageTextColors(newImageTextColors);
+
       // Regenerar la imagen específica con el nuevo texto y estilos personalizados
       // Usar la imagen base guardada si existe, sino usar la imagen base actual
       const baseImageSrc = imageBaseSources[editingIndex] !== undefined 
@@ -1332,7 +1490,8 @@ export default function Dashboard() {
         editingTitle.trim() || null,
         editingTitle.trim() ? editingTitleSize : null,
         imageLogos[editingIndex] !== undefined ? imageLogos[editingIndex] : null,
-        imageLogoSizes[editingIndex] !== undefined && imageLogoSizes[editingIndex] !== null ? imageLogoSizes[editingIndex]! : 100
+        imageLogoSizes[editingIndex] !== undefined && imageLogoSizes[editingIndex] !== null ? imageLogoSizes[editingIndex]! : 100,
+        editingLineHeight
       );
       
       if (newImage) {
@@ -1347,6 +1506,7 @@ export default function Dashboard() {
       setEditingLink("");
       setEditingTitle("");
       setEditingTitleSize(72);
+      setEditingLineHeight(60);
       setEditingTextCase("none");
       setOpenTextCaseMenu(false);
     } finally {
@@ -1360,6 +1520,7 @@ export default function Dashboard() {
     setEditingLink("");
     setEditingTitle("");
     setEditingTitleSize(72);
+    setEditingLineHeight(60);
     setEditingTextCase("none");
     setOpenTextCaseMenu(false);
   };
@@ -1623,7 +1784,8 @@ export default function Dashboard() {
       const customTitleSize = imageTitleSizes[index] !== undefined && imageTitleSizes[index] !== null ? imageTitleSizes[index]! : 72;
       const customLogo = imageLogos[index] !== undefined ? imageLogos[index] : null;
       const customLogoSize = imageLogoSizes[index] !== undefined && imageLogoSizes[index] !== null ? imageLogoSizes[index]! : 100;
-      const newImage = await generateSingleImage(newImageSrc, index, true, customText, currentBlurBlocked, currentTextPosition, undefined, customTitle, customTitleSize, customLogo, customLogoSize);
+      const customLineHeight = imageLineHeights[index] !== undefined && imageLineHeights[index] !== null ? imageLineHeights[index]! : 60;
+      const newImage = await generateSingleImage(newImageSrc, index, true, customText, currentBlurBlocked, currentTextPosition, undefined, customTitle, customTitleSize, customLogo, customLogoSize, customLineHeight);
       
       if (newImage) {
         const newGeneratedImages = [...generatedImages];
@@ -1697,7 +1859,8 @@ export default function Dashboard() {
       const currentBlurBlocked = blurBlocked[index] !== undefined ? blurBlocked[index] : false;
       const customTitle = imageTitles[index] !== undefined ? imageTitles[index] : null;
       const customTitleSize = imageTitleSizes[index] !== undefined && imageTitleSizes[index] !== null ? imageTitleSizes[index]! : 72;
-      const newImage = await generateSingleImage(baseImageSrc, index, true, customText, currentBlurBlocked, position, undefined, customTitle, customTitleSize);
+      const customLineHeight = imageLineHeights[index] !== undefined && imageLineHeights[index] !== null ? imageLineHeights[index]! : 60;
+      const newImage = await generateSingleImage(baseImageSrc, index, true, customText, currentBlurBlocked, position, undefined, customTitle, customTitleSize, null, null, customLineHeight);
       
       if (newImage) {
         const newGeneratedImages = [...generatedImages];
@@ -1735,7 +1898,8 @@ export default function Dashboard() {
       const customTitleSize = imageTitleSizes[index] !== undefined && imageTitleSizes[index] !== null ? imageTitleSizes[index]! : 72;
       const customLogo = imageLogos[index] !== undefined ? imageLogos[index] : null;
       const customLogoSize = imageLogoSizes[index] !== undefined && imageLogoSizes[index] !== null ? imageLogoSizes[index]! : 100;
-      const newImage = await generateSingleImage(baseImageSrc, index, true, customText, newBlurBlockedValue, currentTextPosition, undefined, customTitle, customTitleSize, customLogo, customLogoSize);
+      const customLineHeight = imageLineHeights[index] !== undefined && imageLineHeights[index] !== null ? imageLineHeights[index]! : 60;
+      const newImage = await generateSingleImage(baseImageSrc, index, true, customText, newBlurBlockedValue, currentTextPosition, undefined, customTitle, customTitleSize, customLogo, customLogoSize, customLineHeight);
       
       if (newImage) {
         const newGeneratedImages = [...generatedImages];
@@ -1811,6 +1975,7 @@ export default function Dashboard() {
       <Navbar variant="dashboard" />
       <div className="container max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Caja de inputs */}
+        {generatedImages.length === 0 && (
         <div className="bg-zinc-800/40 border border-zinc-700/60 rounded-xl p-6 sm:p-8 space-y-6 mb-8 shadow-lg backdrop-blur-sm">
           {/* HOOK IDEA */}
           <div className="space-y-3">
@@ -1917,6 +2082,7 @@ export default function Dashboard() {
             </Tooltip>
                 </div>
               </div>
+        )}
 
         {/* Grid de imágenes generadas */}
         {generatedImages.length > 0 && (
@@ -2209,7 +2375,23 @@ export default function Dashboard() {
               </div>
 
                 {/* Segunda fila: Botones de descarga */}
-                <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-700/30">
+                <div className="flex items-center justify-between gap-3 pt-2 border-t border-zinc-700/30">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setShowResetConfirmDialog(true)}
+                        disabled={isGenerating}
+                        className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                        Reset All
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Reset everything to start from scratch</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <div className="flex items-center gap-3">
                   {isGenerating && (
                     <div className="flex items-center gap-2 text-emerald-400 text-xs">
                       <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
@@ -2246,6 +2428,7 @@ export default function Dashboard() {
                       <p>Download all images in a ZIP file</p>
                     </TooltipContent>
                   </Tooltip>
+                  </div>
                 </div>
                 </div>
                 </div>
@@ -2967,6 +3150,26 @@ export default function Dashboard() {
                       </span>
                     </div>
                   </div>
+                  
+                  {/* Slider para espaciado entre líneas */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-zinc-400 whitespace-nowrap">Line Height:</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="30"
+                        max="120"
+                        step="5"
+                        value={editingLineHeight}
+                        onChange={(e) => setEditingLineHeight(parseInt(e.target.value))}
+                        className="w-20 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                        aria-label="Line height control"
+                      />
+                      <span className="text-emerald-400 text-xs font-semibold w-8 text-right tabular-nums">
+                        {editingLineHeight}px
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Segunda fila: Selector de fuente */}
@@ -3347,6 +3550,43 @@ export default function Dashboard() {
                   className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-lg hover:shadow-emerald-500/50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isGenerating ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo de confirmación para Reset */}
+        {showResetConfirmDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowResetConfirmDialog(false)}
+            />
+            {/* Dialog */}
+            <div className="relative bg-zinc-800 border border-zinc-700 rounded-xl p-6 shadow-xl max-w-md w-full mx-4">
+              <h3 className="text-white text-lg font-semibold mb-2">Reset All</h3>
+              <p className="text-zinc-400 text-sm mb-6">
+                Are you sure you want to reset everything? This will delete all generated images and reset all settings to default. This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <Button
+                  onClick={() => setShowResetConfirmDialog(false)}
+                  variant="outline"
+                  className="border-zinc-500 text-white hover:bg-zinc-600 hover:text-white hover:border-zinc-500 bg-zinc-700/50 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowResetConfirmDialog(false);
+                    handleReset();
+                  }}
+                  disabled={isGenerating}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Reset All
                 </Button>
               </div>
             </div>
