@@ -11,8 +11,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Lock, Sparkles, RotateCcw, X, Download, Grid3x3, LayoutList, Edit2, Type, Bold, Italic, Underline, Image as ImageIcon, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Palette, Square, MoreVertical, Link as LinkIcon, AlignLeft, AlignCenter, AlignRight, Upload, CaseUpper, CaseLower, CaseSensitive } from "lucide-react";
+import { Lock, Sparkles, RotateCcw, X, Download, Grid3x3, LayoutList, Edit2, Type, Bold, Italic, Underline, Image as ImageIcon, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, Palette, Square, MoreVertical, Link as LinkIcon, AlignLeft, AlignCenter, AlignRight, Upload, CaseUpper, CaseLower, CaseSensitive, Settings, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import JSZip from "jszip";
+import ProfileInfo from "@/components/profile-info";
+import ChatAssistant from "@/components/chat-assistant";
+import ChatButton from "@/components/chat-button";
 
 export default function Dashboard() {
   const [hookIdea, setHookIdea] = useState("");
@@ -72,7 +75,16 @@ export default function Dashboard() {
   const [openTextPositionMenu, setOpenTextPositionMenu] = useState<number | null>(null); // Índice del menú de posición abierto
   const [openImageMenu, setOpenImageMenu] = useState<number | null>(null); // Índice del menú de imagen abierto
   const [showResetConfirmDialog, setShowResetConfirmDialog] = useState(false); // Diálogo de confirmación para reset
+  const [showProfileInfo, setShowProfileInfo] = useState(false); // Mostrar componente ProfileInfo
+  const [savingProfile, setSavingProfile] = useState(false); // Estado de guardado del perfil
+  const [loadingProfile, setLoadingProfile] = useState(false); // Estado de carga del perfil
+  const [profileData, setProfileData] = useState<any>(null); // Datos del perfil cargado
+  const [showChat, setShowChat] = useState(false); // Mostrar chat assistant
+  const [currentHooks, setCurrentHooks] = useState<string[]>([]); // Hooks generados actuales
   const shouldRegenerateRef = useRef(false);
+  const gridScrollRef = useRef<HTMLDivElement>(null); // Ref para el contenedor scrolleable del grid
+  const [showLeftScroll, setShowLeftScroll] = useState(false); // Mostrar botón de scroll izquierdo
+  const [showRightScroll, setShowRightScroll] = useState(true); // Mostrar botón de scroll derecho
 
   const availableFonts = [
     { value: "Inter", label: "Inter" },
@@ -140,31 +152,76 @@ export default function Dashboard() {
 
   // Función para dividir texto en líneas que quepan en el ancho máximo
   const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
-    const words = text.split(" ");
+    // Primero, dividir el texto por puntos seguidos de espacio para crear saltos de línea
+    // Esto crea un array donde cada elemento es una oración (terminada en punto) o el separador '. '
+    const sentences = text.split(/(\.\s+)/);
+    const allLines: string[] = [];
+    
+    // Procesar cada parte del texto
+    let currentSentence = "";
+    for (let i = 0; i < sentences.length; i++) {
+      const part = sentences[i];
+      
+      // Si es el separador '. ', procesar la oración acumulada y empezar una nueva
+      if (part === '. ') {
+        if (currentSentence.trim()) {
+          // Procesar la oración actual (con el punto al final)
+          const sentenceWithDot = currentSentence.trim() + ".";
+          const wrappedLines = wrapSentence(ctx, sentenceWithDot, maxWidth);
+          allLines.push(...wrappedLines);
+        }
+        currentSentence = "";
+      } else {
+        // Acumular el texto de la oración
+        currentSentence += part;
+      }
+    }
+    
+    // Procesar la última oración si existe (puede no terminar en punto)
+    if (currentSentence.trim()) {
+      const wrappedLines = wrapSentence(ctx, currentSentence.trim(), maxWidth);
+      allLines.push(...wrappedLines);
+    }
+    
+    return allLines;
+  };
+
+  // Función auxiliar para hacer wrap de una oración individual
+  const wrapSentence = (ctx: CanvasRenderingContext2D, sentence: string, maxWidth: number): string[] => {
+    const words = sentence.split(" ");
     const lines: string[] = [];
-    let currentLine = words[0];
+    let currentLine = words[0] || "";
 
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
-      const width = ctx.measureText(currentLine + " " + word).width;
+      const testLine = currentLine + " " + word;
+      const width = ctx.measureText(testLine).width;
       if (width < maxWidth) {
-        currentLine += " " + word;
+        currentLine = testLine;
       } else {
-        lines.push(currentLine);
+        if (currentLine) {
+          lines.push(currentLine);
+        }
         currentLine = word;
       }
     }
-    lines.push(currentLine);
+    if (currentLine) {
+      lines.push(currentLine);
+    }
     return lines;
   };
 
   // Función para generar imágenes
-  const generateImages = async () => {
+  const generateImages = async (hooksToUse?: string[]) => {
     // Regenerar todas las imágenes existentes, no solo las primeras count
     const currentCount = generatedImages.length;
     const initialCount = parseInt(numericValue) || 6;
     // Usar el máximo entre las imágenes existentes y el count inicial para preservar las añadidas
-    const count = Math.max(currentCount, initialCount);
+    // Limitar a máximo 10 imágenes
+    let count = Math.max(currentCount, initialCount);
+    if (count > 10) {
+      count = 10;
+    }
     const images: string[] = [];
     const baseSources: (string | null)[] = [];
 
@@ -206,10 +263,21 @@ export default function Dashboard() {
       const imageBase = imageBaseSources[i] !== undefined ? imageBaseSources[i] : baseImageSrc;
       baseSources.push(imageBase);
       
-      // Usar texto personalizado si existe, sino usar el mockText correspondiente
-      const customText = customTexts[i] !== undefined ? customTexts[i] : null;
-      // Si no hay texto personalizado y es una imagen añadida (índice >= initialCount), no usar texto
-      const textToUse = customText !== null ? customText : (i < initialCount ? mockTexts[i % mockTexts.length] : "");
+      // Usar hooks pasados como parámetro, o texto personalizado del estado, o mockText
+      let textToUse = "";
+      if (hooksToUse && hooksToUse[i] && hooksToUse[i].trim() !== "") {
+        // Prioridad 1: Hooks pasados como parámetro
+        textToUse = hooksToUse[i];
+      } else {
+        // Prioridad 2: Texto personalizado del estado
+        const customText = customTexts[i] !== undefined ? customTexts[i] : null;
+        if (customText !== null && customText !== "" && customText.trim() !== "") {
+          textToUse = customText;
+        } else if (customTexts.length === 0 && i < initialCount) {
+          // Prioridad 3: MockText solo si no hay hooks generados
+          textToUse = mockTexts[i % mockTexts.length];
+        }
+      }
       
       // Obtener el título si existe
       const customTitle = imageTitles[i] !== undefined ? imageTitles[i] : null;
@@ -679,26 +747,121 @@ export default function Dashboard() {
 
   const handleCreateConcepts = async () => {
     shouldRegenerateRef.current = true;
-    // Limpiar textos personalizados al crear nuevos conceptos
-    setCustomTexts([]);
-    // Inicializar el array de blur bloqueado (primera imagen bloqueada por defecto = true, resto activo = false)
-    const count = parseInt(numericValue) || 6;
-    const initialBlurBlocked = new Array(count).fill(false);
-    initialBlurBlocked[0] = true; // Primera imagen bloqueada por defecto
-    setBlurBlocked(initialBlurBlocked);
-    // Inicializar el array de logos (todos null = sin logo)
-    setImageLogos(new Array(count).fill(null));
-    // Inicializar el array de tamaños de logos (todos null = tamaño por defecto)
-    setImageLogoSizes(new Array(count).fill(null));
-    // Inicializar el array de line-heights (todos null = tamaño por defecto)
-    setImageLineHeights(new Array(count).fill(null));
-    // Inicializar los arrays de estilos de texto (todos null = usar valores globales)
-    setImageTextSizes(new Array(count).fill(null));
-    setImageTextBold(new Array(count).fill(null));
-    setImageTextItalic(new Array(count).fill(null));
-    setImageTextUnderline(new Array(count).fill(null));
-    setImageTextColors(new Array(count).fill(null));
-    await generateImages();
+    setIsGenerating(true);
+    
+    try {
+      let count = parseInt(numericValue) || 6;
+      // Limitar a máximo 10 imágenes
+      if (count > 10) {
+        count = 10;
+        setNumericValue("10");
+      }
+      
+      // Load profile data if not already loaded
+      let currentProfileData = profileData;
+      if (!currentProfileData) {
+        try {
+          const response = await fetch('/api/profile');
+          const result = await response.json();
+          if (result.success && result.data) {
+            currentProfileData = result.data;
+            setProfileData(result.data);
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+      }
+      
+      // Generate hooks using OpenAI if hookIdea is provided
+      let generatedHooks: string[] = [];
+      if (hookIdea.trim()) {
+        try {
+          // Prepare profile data for prompt
+          let profileDataForPrompt = null;
+          if (currentProfileData) {
+            profileDataForPrompt = {
+              core_idea: currentProfileData.core_idea || null,
+              pain_point: currentProfileData.pain_point || null,
+              audience_profile: currentProfileData.audience_profile || null,
+              technical_level: currentProfileData.technical_level || null,
+              product_role: currentProfileData.product_role || null,
+              intensity_level: currentProfileData.intensity_level || null,
+              content_goal: currentProfileData.content_goal || null,
+              language: currentProfileData.language || 'English',
+            };
+          }
+
+          const response = await fetch('/api/generate-hooks', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              hookIdea: hookIdea.trim(),
+              count: count,
+              profileData: profileDataForPrompt,
+            }),
+          });
+
+          const result = await response.json();
+          
+          if (result.success && result.hooks && result.hooks.length > 0) {
+            generatedHooks = result.hooks;
+            console.log('Generated hooks:', generatedHooks);
+          } else {
+            console.warn('Failed to generate hooks, using fallback');
+            // Fallback to mockTexts if generation fails
+            generatedHooks = mockTexts.slice(0, count);
+          }
+        } catch (error) {
+          console.error('Error generating hooks:', error);
+          // Fallback to mockTexts if API call fails
+          generatedHooks = mockTexts.slice(0, count);
+        }
+      } else {
+        // If no hook idea, use mockTexts
+        generatedHooks = mockTexts.slice(0, count);
+      }
+
+      // Set the generated hooks as custom texts - asegurar que haya un hook para cada imagen
+      const hooksForImages = new Array(count).fill(null).map((_, index) => {
+        // Usar el hook correspondiente del array generado, o el último si hay más imágenes que hooks
+        return generatedHooks[index] || generatedHooks[generatedHooks.length - 1] || "";
+      });
+      
+      console.log('Hooks assigned to images:', hooksForImages);
+      console.log('Count:', count);
+      
+      // Establecer los hooks en el estado
+      setCustomTexts(hooksForImages);
+      // Guardar hooks para el chat assistant
+      setCurrentHooks(hooksForImages);
+      
+      // Inicializar el array de blur bloqueado (primera imagen bloqueada por defecto = true, resto activo = false)
+      const initialBlurBlocked = new Array(count).fill(false);
+      initialBlurBlocked[0] = true; // Primera imagen bloqueada por defecto
+      setBlurBlocked(initialBlurBlocked);
+      // Inicializar el array de logos (todos null = sin logo)
+      setImageLogos(new Array(count).fill(null));
+      // Inicializar el array de tamaños de logos (todos null = tamaño por defecto)
+      setImageLogoSizes(new Array(count).fill(null));
+      // Inicializar el array de line-heights (todos null = tamaño por defecto)
+      setImageLineHeights(new Array(count).fill(null));
+      // Inicializar los arrays de estilos de texto (todos null = usar valores globales)
+      setImageTextSizes(new Array(count).fill(null));
+      setImageTextBold(new Array(count).fill(null));
+      setImageTextItalic(new Array(count).fill(null));
+      setImageTextUnderline(new Array(count).fill(null));
+      setImageTextColors(new Array(count).fill(null));
+      
+      // Generate images with the hooks - pasar los hooks directamente como parámetro
+      await generateImages(hooksForImages);
+    } catch (error) {
+      console.error('Error in handleCreateConcepts:', error);
+      alert('Error creating concepts. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleReset = () => {
@@ -825,6 +988,46 @@ export default function Dashboard() {
     }
   }, [openTextCaseMenu]);
 
+  // Función para actualizar la visibilidad de los botones de scroll
+  const updateScrollButtons = () => {
+    if (gridScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = gridScrollRef.current;
+      setShowLeftScroll(scrollLeft > 0);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  // Función para hacer scroll hacia la izquierda
+  const handleScrollLeft = () => {
+    if (gridScrollRef.current) {
+      gridScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  // Función para hacer scroll hacia la derecha
+  const handleScrollRight = () => {
+    if (gridScrollRef.current) {
+      gridScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
+
+  // Efecto para actualizar la visibilidad de los botones cuando cambia el scroll o el contenido
+  useEffect(() => {
+    if (viewMode === "grid" && generatedImages.length > 0) {
+      const scrollContainer = gridScrollRef.current;
+      if (scrollContainer) {
+        updateScrollButtons();
+        scrollContainer.addEventListener('scroll', updateScrollButtons);
+        window.addEventListener('resize', updateScrollButtons);
+        
+        return () => {
+          scrollContainer.removeEventListener('scroll', updateScrollButtons);
+          window.removeEventListener('resize', updateScrollButtons);
+        };
+      }
+    }
+  }, [viewMode, generatedImages.length]);
+
 
   const handleDownloadZip = async () => {
     if (generatedImages.length === 0) return;
@@ -917,7 +1120,10 @@ export default function Dashboard() {
         if (customText !== undefined && customText !== null) {
           textToUse = customText;
         } else {
-          textToUse = mockTexts[imageIndex % mockTexts.length];
+          // Usar hook generado si existe, sino usar mockText
+          textToUse = customTexts[imageIndex] && customTexts[imageIndex] !== "" 
+            ? customTexts[imageIndex]! 
+            : mockTexts[imageIndex % mockTexts.length];
         }
       } else {
         textToUse = "";
@@ -1287,6 +1493,11 @@ export default function Dashboard() {
   };
 
   const handleAddNewImage = async () => {
+    // Limitar a máximo 10 imágenes
+    if (generatedImages.length >= 10) {
+      return;
+    }
+    
     // Usar la imagen base actual (subida o la de public)
     const baseImageSrc = uploadedImage || "/vertical-image.jpg";
     
@@ -1337,7 +1548,7 @@ export default function Dashboard() {
     // Obtener el texto actual de la imagen (personalizado o mock)
     const currentText = customTexts[index] !== undefined && customTexts[index] !== null
       ? customTexts[index]!
-      : mockTexts[index % mockTexts.length];
+      : (customTexts[index] && customTexts[index] !== "" ? customTexts[index]! : mockTexts[index % mockTexts.length]);
     setEditingText(currentText);
     
     // Obtener el enlace actual si existe
@@ -1971,9 +2182,9 @@ export default function Dashboard() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-zinc-900 text-zinc-100">
+      <div className={`bg-zinc-900 text-zinc-100 ${viewMode === "grid" && generatedImages.length > 0 ? "h-screen overflow-hidden" : "min-h-screen"}`}>
       <Navbar variant="dashboard" />
-      <div className="container max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={`container max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 ${viewMode === "grid" && generatedImages.length > 0 ? "h-full flex flex-col overflow-hidden" : ""}`}>
         {/* Caja de inputs */}
         {generatedImages.length === 0 && (
         <div className="bg-zinc-800/40 border border-zinc-700/60 rounded-xl p-6 sm:p-8 space-y-6 mb-8 shadow-lg backdrop-blur-sm">
@@ -1981,7 +2192,7 @@ export default function Dashboard() {
           <div className="space-y-3">
             <label className="text-white text-sm font-semibold block tracking-wide">HOOK IDEA</label>
             <Textarea
-              placeholder="Escribe tu hook idea..."
+              placeholder="Write your hook idea..."
               value={hookIdea}
               onChange={(e) => setHookIdea(e.target.value)}
               className="bg-zinc-900/60 border-zinc-700 text-white placeholder:text-zinc-500 min-h-[100px] text-base resize-none focus:ring-2 focus:ring-emerald-600/50 focus:border-emerald-600/50"
@@ -1989,28 +2200,39 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* VISUAL PROMPT y CUSTOM UPLOAD en fila */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* VISUAL PROMPT */}
-            <div className="space-y-3">
-              <label className="text-zinc-400 text-sm font-semibold block tracking-wide">VISUAL PROMPT</label>
-              <div className="relative">
-            <Input
-              type="text"
-                  placeholder="Neon cyber city..."
-                  value={visualPrompt}
-                  onChange={(e) => setVisualPrompt(e.target.value)}
-                  disabled={!!uploadedImage}
-                  className="bg-zinc-900/60 border-zinc-700 text-zinc-400 placeholder:text-zinc-500 h-12 text-base pr-10 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-emerald-600/50 focus:border-emerald-600/50"
-                />
-                {uploadedImage && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-                )}
-        </div>
-              </div>
+          {/* VISUAL PROMPT */}
+          <div className="space-y-3">
+            <label className={`text-sm font-semibold block tracking-wide ${uploadedImage ? "text-zinc-500" : "text-zinc-400"}`}>
+              VISUAL PROMPT
+              {uploadedImage && (
+                <span className="ml-2 text-xs text-zinc-500 italic">(Disabled when custom image is uploaded)</span>
+              )}
+            </label>
+            <div className="relative">
+              <Textarea
+                placeholder={uploadedImage ? "Visual prompt is disabled when a custom image is uploaded" : "Neon cyber city..."}
+                value={visualPrompt}
+                onChange={(e) => setVisualPrompt(e.target.value)}
+                disabled={!!uploadedImage}
+                className={`bg-zinc-900/60 border-zinc-700 text-zinc-400 placeholder:text-zinc-500 min-h-[100px] text-base resize-none pr-10 w-full focus:ring-2 focus:ring-emerald-600/50 focus:border-emerald-600/50 ${
+                  uploadedImage 
+                    ? "opacity-60 cursor-not-allowed bg-zinc-900/40 border-zinc-700/50" 
+                    : "disabled:opacity-50 disabled:cursor-not-allowed"
+                }`}
+                rows={4}
+              />
+              {uploadedImage && (
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-zinc-500" />
+                </div>
+              )}
+            </div>
+          </div>
 
+          {/* CUSTOM UPLOAD y Number of Slides en fila */}
+          <div className="flex items-end gap-6">
             {/* CUSTOM UPLOAD */}
-            <div className="space-y-3">
+            <div className="flex-1 space-y-3">
               <label className="text-white text-sm font-semibold block tracking-wide">CUSTOM UPLOAD</label>
               <div className="relative">
                 <input
@@ -2033,7 +2255,7 @@ export default function Dashboard() {
                     >
                       <X className="h-3 w-3 text-white" />
                     </button>
-                </div>
+                  </div>
                 ) : (
                   <button
                     onClick={() => document.getElementById("image-upload")?.click()}
@@ -2043,53 +2265,173 @@ export default function Dashboard() {
                   </button>
                 )}
               </div>
-                </div>
+            </div>
+
+            {/* Number of Slides */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <label className="text-white text-sm font-semibold block tracking-wide">
+                  Number of Slides
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer"
+                      aria-label="Information about slide limit"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Maximum of 10 slides allowed</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                value={numericValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || (parseInt(value) >= 1 && parseInt(value) <= 10)) {
+                    setNumericValue(value);
+                  }
+                }}
+                className="bg-zinc-900/60 border-zinc-700 text-white w-full h-12 text-center focus:ring-2 focus:ring-emerald-600/50 focus:border-emerald-600/50"
+              />
+            </div>
+          </div>
 
           {/* Controles inferiores */}
           <div className="flex items-center gap-4 pt-4">
-            {/* Input numérico */}
-            <Input
-              type="number"
-              value={numericValue}
-              onChange={(e) => setNumericValue(e.target.value)}
-              className="bg-zinc-900/60 border-zinc-700 text-white w-20 h-10 text-center focus:ring-2 focus:ring-emerald-600/50 focus:border-emerald-600/50"
-            />
-
             {/* Botón CREATE CONCEPTS */}
-                  <Button
+            <Button
               onClick={handleCreateConcepts}
-              className="flex-1 bg-white text-black hover:bg-zinc-100 h-12 text-base font-medium rounded-md cursor-pointer"
+              disabled={isGenerating}
+              className="flex-1 bg-white text-black hover:bg-zinc-100 h-12 text-base font-medium rounded-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              CREATE CONCEPTS
-                  </Button>
+              {isGenerating ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  GENERATING...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  CREATE CONCEPTS
+                </>
+              )}
+            </Button>
+          </div>
 
-            {/* Botón refresh */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                  <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  className="h-12 w-12 rounded-full bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800 p-0 cursor-pointer"
-                >
-                  <RotateCcw className="h-4 w-4 text-white" />
-                  </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Resetear todo</p>
-              </TooltipContent>
-            </Tooltip>
-                </div>
+          {/* Enlace a Profile Info */}
+          <div className="flex items-center justify-center pt-4 border-t border-zinc-700/30">
+            <button
+              onClick={async () => {
+                setShowProfileInfo(true);
+                // Cargar el perfil guardado cuando se abre
+                setLoadingProfile(true);
+                try {
+                  const response = await fetch('/api/profile');
+                  const result = await response.json();
+                  if (result.success && result.data) {
+                    setProfileData(result.data);
+                  } else {
+                    setProfileData(null);
+                  }
+                } catch (error) {
+                  console.error('Error loading profile:', error);
+                  setProfileData(null);
+                } finally {
+                  setLoadingProfile(false);
+                }
+              }}
+              className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 text-sm font-medium transition-colors cursor-pointer"
+            >
+              <Settings className="h-4 w-4" />
+              Configure Prompt Info
+            </button>
+          </div>
+        </div>
+        )}
+
+        {/* Componente ProfileInfo */}
+        {showProfileInfo && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white text-xl font-semibold">Profile Information</h2>
+              <Button
+                onClick={() => {
+                  setShowProfileInfo(false);
+                  setProfileData(null);
+                }}
+                variant="outline"
+                className="border-zinc-500 text-white hover:bg-zinc-600 hover:text-white hover:border-zinc-500 bg-zinc-700/50 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {loadingProfile ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                <span className="ml-2 text-zinc-400">Loading profile...</span>
               </div>
+            ) : (
+              <ProfileInfo
+                isSaving={savingProfile}
+                initialData={profileData ? {
+                  core_idea: profileData.core_idea || "",
+                  pain_point: profileData.pain_point || "",
+                  audience_profile: profileData.audience_profile || [],
+                  technical_level: profileData.technical_level || "",
+                  product_role: profileData.product_role || "",
+                  intensity_level: profileData.intensity_level || 3,
+                  content_goal: profileData.content_goal || "",
+                  language: profileData.language || "English",
+                } : undefined}
+                onSave={async (data) => {
+                  setSavingProfile(true);
+                  try {
+                    // Call API endpoint to save profile
+                    const response = await fetch('/api/profile', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(data),
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                      console.error("Error saving profile:", result.error);
+                      alert(result.error || "Error saving profile. Please try again.");
+                    } else {
+                      console.log("Profile saved successfully:", result.data);
+                      alert("Profile saved successfully!");
+                      setProfileData(result.data); // Update local state with saved data
+                      setShowProfileInfo(false);
+                    }
+                  } catch (error) {
+                    console.error("Unexpected error saving profile:", error);
+                    alert("An unexpected error occurred. Please try again.");
+                  } finally {
+                    setSavingProfile(false);
+                  }
+                }}
+              />
+            )}
+          </div>
         )}
 
         {/* Grid de imágenes generadas */}
         {generatedImages.length > 0 && (
-              <div className="space-y-4">
+              <div className={`space-y-4 ${viewMode === "grid" ? "flex-1 flex flex-col overflow-hidden" : ""}`}>
             {/* Toolbar sticky */}
-            <div className="sticky top-4 z-10 bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-xl p-4 mb-4 shadow-lg">
-              <div className="flex flex-col gap-4">
+            <div className={`${viewMode === "grid" ? "flex-none relative z-50" : "sticky top-4 z-50"} bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-xl p-4 mb-4 shadow-lg`}>
+              <div className="flex flex-col gap-4 relative">
                 {/* Primera fila: Controles de imagen */}
                 <div className="flex items-center gap-4 flex-wrap">
                   {/* Grupo: Desenfoque y Brillo */}
@@ -2361,13 +2703,13 @@ export default function Dashboard() {
                                 ? "bg-emerald-600 text-white"
                                 : "text-zinc-400 hover:text-zinc-200"
                             }`}
-                            aria-label="Switch to carousel view"
+                            aria-label="Switch to TikTok view"
                           >
                             <LayoutList className="h-4 w-4" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Carousel View - View images in a carousel</p>
+                          <p>TikTok View - View images in a TikTok-style carousel</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -2381,69 +2723,93 @@ export default function Dashboard() {
                       <Button
                         onClick={() => setShowResetConfirmDialog(true)}
                         disabled={isGenerating}
-                        className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        className="bg-emerald-800 hover:bg-emerald-900 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed font-medium"
                       >
                         <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                         Reset All
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Reset everything to start from scratch</p>
+                      <p>Reset all settings and clear images</p>
                     </TooltipContent>
                   </Tooltip>
+                  
                   <div className="flex items-center gap-3">
-                  {isGenerating && (
-                    <div className="flex items-center gap-2 text-emerald-400 text-xs">
-                      <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                      <span>Updating...</span>
-                    </div>
-                  )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                    <Button
-                        onClick={handleDownloadBackgroundImage}
-                        disabled={isGenerating || (!uploadedImage && !generatedImages.length)}
-                        className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1.5" />
-                        Background
-                    </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Download background image without text</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                    <Button
-                        onClick={handleDownloadZip}
-                        disabled={isGenerating || generatedImages.length === 0}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1.5" />
-                        Download ZIP
-                    </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Download all images in a ZIP file</p>
-                    </TooltipContent>
-                  </Tooltip>
+                    {isGenerating && (
+                      <div className="flex items-center gap-2 text-emerald-400 text-xs">
+                        <div className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                        <span>Updating...</span>
+                      </div>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                      <Button
+                          onClick={handleDownloadBackgroundImage}
+                          disabled={isGenerating || (!uploadedImage && !generatedImages.length)}
+                          className="bg-zinc-700 hover:bg-zinc-600 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Background
+                      </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Download background image without text</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                      <Button
+                          onClick={handleDownloadZip}
+                          disabled={isGenerating || generatedImages.length === 0}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm h-8 px-3 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                          Download ZIP
+                      </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Download all images in a ZIP file</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
-                </div>
-                </div>
+              </div>
+            </div>
 
             {viewMode === "grid" ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="relative flex-1" style={{ height: "calc(100vh - 300px)" }}>
+                {/* Botón de scroll izquierdo */}
+                {showLeftScroll && (
+                  <button
+                    onClick={handleScrollLeft}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-zinc-900/90 hover:bg-zinc-800 text-white p-3 rounded-full shadow-lg transition-all cursor-pointer backdrop-blur-sm border border-zinc-700/50"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                )}
+                
+                {/* Contenedor scrolleable */}
+                <div 
+                  ref={gridScrollRef}
+                  className="flex-1 overflow-x-auto overflow-y-hidden pb-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900"
+                  style={{ height: "100%" }}
+                  onScroll={updateScrollButtons}
+                >
+                  <div className="inline-flex gap-4 items-center" style={{ minWidth: "max-content", height: "100%" }}>
                 {generatedImages.map((imageUrl, index) => (
                   <div
                     key={index}
-                    className="relative bg-zinc-800/30 border border-zinc-700/50 rounded-lg overflow-hidden"
+                    className="relative bg-zinc-800/30 border border-zinc-700/50 rounded-lg overflow-hidden flex-shrink-0"
+                    style={{
+                      width: "300px",
+                      height: "calc(100vh - 350px)",
+                    }}
                   >
                     <img
                       src={imageUrl}
                       alt={`Concepto ${index + 1}`}
-                      className="w-full h-auto object-contain transition-all duration-300"
+                      className="w-full h-full object-contain transition-all duration-300"
                       style={{
                         aspectRatio: "1080/1920",
                       }}
@@ -2607,11 +2973,11 @@ export default function Dashboard() {
                 {/* Botón para añadir nueva imagen */}
                 <button
                   onClick={handleAddNewImage}
-                  disabled={isGenerating}
-                  className="relative bg-zinc-800/30 border border-zinc-700/50 border-dashed rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:bg-zinc-800/40 hover:border-zinc-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGenerating || generatedImages.length >= 10}
+                  className="relative bg-zinc-800/30 border border-zinc-700/50 border-dashed rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:bg-zinc-800/40 hover:border-zinc-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                   style={{
-                    aspectRatio: "1080/1920",
-                    minHeight: "200px",
+                    width: "300px",
+                    height: "calc(100vh - 350px)",
                   }}
                 >
                   <div className="flex flex-col items-center justify-center gap-2 text-zinc-400 hover:text-zinc-200 transition-colors p-4">
@@ -2631,7 +2997,20 @@ export default function Dashboard() {
                     <span className="text-sm font-medium">Añadir imagen</span>
             </div>
                 </button>
+                  </div>
                 </div>
+
+                {/* Botón de scroll derecho */}
+                {showRightScroll && (
+                  <button
+                    onClick={handleScrollRight}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-zinc-900/90 hover:bg-zinc-800 text-white p-3 rounded-full shadow-lg transition-all cursor-pointer backdrop-blur-sm border border-zinc-700/50"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                )}
+              </div>
               ) : (
               <div className="relative flex justify-center w-full">
                 {/* Carrusel */}
@@ -2730,9 +3109,9 @@ export default function Dashboard() {
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleAddNewImage}
-                          disabled={isGenerating}
+                          disabled={isGenerating || generatedImages.length >= 10}
                           className="ml-2 p-2 bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-full transition-colors shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          aria-label="Añadir nueva imagen"
+                          aria-label={generatedImages.length >= 10 ? "Máximo de 10 imágenes alcanzado" : "Añadir nueva imagen"}
                         >
                           <svg
                             className="w-4 h-4"
@@ -2750,7 +3129,7 @@ export default function Dashboard() {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Añadir nueva imagen sin texto</p>
+                        <p>{generatedImages.length >= 10 ? "Máximo de 10 imágenes alcanzado" : "Añadir nueva imagen sin texto"}</p>
                       </TooltipContent>
                     </Tooltip>
                     </div>
@@ -2917,7 +3296,7 @@ export default function Dashboard() {
                     </div>
                 )}
               </div>
-              )}
+            )}
 
         {/* Modal de edición de texto */}
         {editingIndex !== null && (
@@ -3556,21 +3935,38 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Diálogo de confirmación para Reset */}
+        {/* Reset Confirmation Dialog */}
         {showResetConfirmDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowResetConfirmDialog(false);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowResetConfirmDialog(false);
+              }
+            }}
+            tabIndex={-1}
+          >
             <div 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setShowResetConfirmDialog(false)}
-            />
-            {/* Dialog */}
-            <div className="relative bg-zinc-800 border border-zinc-700 rounded-xl p-6 shadow-xl max-w-md w-full mx-4">
-              <h3 className="text-white text-lg font-semibold mb-2">Reset All</h3>
-              <p className="text-zinc-400 text-sm mb-6">
-                Are you sure you want to reset everything? This will delete all generated images and reset all settings to default. This action cannot be undone.
-              </p>
-              <div className="flex items-center justify-end gap-3">
+              className="bg-zinc-800 border border-zinc-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-800/20 flex items-center justify-center">
+                  <RotateCcw className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white text-lg font-semibold mb-2">Reset All</h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed">
+                    Are you sure you want to reset everything? This will clear all images, settings, and text. This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-700/50">
                 <Button
                   onClick={() => setShowResetConfirmDialog(false)}
                   variant="outline"
@@ -3580,17 +3976,31 @@ export default function Dashboard() {
                 </Button>
                 <Button
                   onClick={() => {
-                    setShowResetConfirmDialog(false);
                     handleReset();
+                    setShowResetConfirmDialog(false);
                   }}
-                  disabled={isGenerating}
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-semibold cursor-pointer shadow-lg hover:shadow-emerald-800/50 transition-all"
                 >
                   Reset All
                 </Button>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Chat Assistant */}
+        {showChat && (
+          <ChatAssistant
+            profileData={profileData}
+            generatedHooks={currentHooks}
+            isOpen={showChat}
+            onClose={() => setShowChat(false)}
+          />
+        )}
+
+        {/* Chat Button */}
+        {!showChat && generatedImages.length > 0 && (
+          <ChatButton onClick={() => setShowChat(true)} />
         )}
       </div>
     </div>
