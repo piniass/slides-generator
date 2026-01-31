@@ -22,6 +22,13 @@ export const APP_CONFIG = {
     get name() {
       return APP_CONFIG.name;
     },
+    roundness: "rounded-md",
+    backgroundColor: "#10b981", // emerald-500
+    textColor: "#ffffff", // white
+    get firstLetter() {
+      return APP_CONFIG.name.charAt(0).toUpperCase();
+    },
+    icon: "Zap", // Only used when type is 'icon'
   },
 
   // Contact information
