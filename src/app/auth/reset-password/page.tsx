@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,11 @@ import { updatePassword, type AuthError } from "@/lib/auth-utils";
 import Logo from "@/components/ui/logo";
 
 /**
- * Reset Password Page Component
+ * Reset Password Form Component
  * 
- * A page that allows users to set a new password after clicking the reset link from their email.
- * 
- * @component
+ * Internal component that uses useSearchParams - must be wrapped in Suspense
  */
-export default function ResetPassword() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
@@ -226,5 +224,34 @@ export default function ResetPassword() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Reset Password Page Component
+ * 
+ * A page that allows users to set a new password after clicking the reset link from their email.
+ * 
+ * @component
+ */
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4">
+                <Logo size="lg" showText={false} href={undefined} />
+              </div>
+              <CardTitle className="text-2xl">Set new password</CardTitle>
+              <CardDescription>Loading...</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
