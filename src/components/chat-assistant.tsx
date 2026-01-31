@@ -181,3 +181,4 @@ export default function ChatAssistant({ profileData, generatedHooks, isOpen, onC
 
 
 
+
